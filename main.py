@@ -1,4 +1,5 @@
 import pprint
+import time
 
 import cv2
 import numpy as np
@@ -22,73 +23,52 @@ def subshot_from_res(image, template_image, res):
 def main():
 
     #test_image = np.array(Image.open("resources/fishing_still_test.jpg"))
-    #test_image = np.array(Image.open("resources/fishing_still_test1.jpg"))
+    test_image = np.array(Image.open("resources/fishing_still_test1.jpg"))
     #test_image = np.array(Image.open("resources/fishing_still_test2.jpg"))
-    test_image = np.array(Image.open("resources/fishing_still_test3.jpg"))
+    #test_image = np.array(Image.open("resources/fishing_still_test3.jpg"))
 
 
     incorrect_image = np.array(Image.open("resources/incorrect_still.jpg"))
     test_image = cv2.cvtColor(test_image, cv2.COLOR_BGR2RGB)
+    sct = mss.mss()
+    mon = {'left': 0, 'top': 0, 'width': 1920, 'height': 1080}
+    ff = None
 
-    ff = FishingFrame.FishingFrame.create_from_image(test_image)
-    while True:
+    print(FishingFrame.FishingFrame.fishing_frame.shape)
+
+    time.sleep(2)
+    while not ff:
+        #if cv2.waitKey(0) == ord('q'):
+        #    break
+        ss = sct.grab(mon)
+
+        image = np.asarray(Image.frombytes(
+            'RGB',
+            (ss.width, ss.height),
+            ss.rgb,
+        ))
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        #cv2.imshow("T", np.array(image))
+
+        ff = FishingFrame.FishingFrame.create_from_image(image)
+    print(ff)
+
+    video = cv2.VideoWriter('video.avi', cv2.VideoWriter_fourcc(*"XVID"), 30, (ff.width, ff.height))
+
+    start_time = time.time()
+    ims = []
+    while time.time() - start_time < 5:
+        print(time.time() - start_time)
         ff.find(test_image)
         ff.find_fish()
-        image = ff.get_image()
-        image = cv2.rectangle(image, (75, 17), (105, 575), 255, 2)
-        print(image.shape)
-        bar = image[19:575, 70:110, :]
+        ff.find_fishing_bar()
+        # ims.append(ff.get_image())
 
-        #filter_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
-        filter_x = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
+    for im in ims:
+        video.write(im)
+    video.release()
 
-
-
-        filtered = cv2.filter2D(bar, -1, filter_x)
-
-        #filtered = ndimage.convolve(bar, filter_x, mode='same')
-        # bar = cv2.cvtColor(bar, v2.)
-        #for i in range(3):
-        #    # print(filter_x)
-        #    filtered[:, :, i] = scipy.signal.convolve2d(bar[:, :, i], filter_x, mode='same')
-
-        print(filtered.shape, bar.shape)
-
-        cv2.imshow("TEST %i2", filtered)
-
-
-
-
-        # print(filtered)
-        print(filtered.sum(1).shape)
-
-
-        """
-        Finding bar.
-            Perform filter using gaussian derivative
-            Using filtered image
-            Calculate sum of row in bar
-            Find bars that exceed threshold
-            If bar is within fish bounds, dont consider it
-        """
-        for i, num in enumerate(filtered.sum(1).sum(1)):
-            if num < 5000:
-                continue
-            #if ff.fish_position[0] < i < ff.fish_position[0] + ff.fish_image.shape[0]:
-            print(ff.fish_position, ff.fish_image.shape, i)
-            if ff.fish_position[1] < i < ff.fish_position[1] + ff.fish_image.shape[1]:
-                continue
-            bar = cv2.line(bar, (0, i), (50, i), 255, 2)
-            print(i, num)
-
-        cv2.imshow("TEST %i", bar)
-
-
-
-        cv2.imshow("Screenshot2", ff.get_image())
-        if cv2.waitKey(0) == ord('q'):
-            break
-
+    cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
