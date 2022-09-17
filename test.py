@@ -4,10 +4,13 @@ import time
 import cv2
 import numpy as np
 import mss
+import pynput.mouse
 from PIL import Image
 import os
 import scipy.signal
 from scipy import ndimage
+
+from pynput.mouse import Listener
 
 import FishingFrame
 
@@ -22,6 +25,7 @@ def similarColorTest():
     # arr[np.where(np.all(arr == [4, 5, 6], axis=-1))] = [10, 10, 10]
     # print(arr)
     # exit()
+
     test_image = cv2.imread("test_resources/shapes-basic-color.png")
     cv2.imshow("Original Image", test_image)
     test_image = np.array(test_image)
@@ -79,7 +83,7 @@ def findFishingBarColor():
 
     :return:
     """
-    test_image = cv2.imread("resources/fishing_still_test3.jpg")
+    test_image = cv2.imread("resources/fishing_still_test_faint_bar.jpg")
     cv2.imshow("Original Image", test_image)
 
     ff = FishingFrame.FishingFrame.create_from_image(test_image)
@@ -95,8 +99,8 @@ def findFishingBarColor():
     blue_lower = np.array([70, 114, 223]) - 10  # Small 10 value buffer
     blue_upper = np.array([175, 208, 243]) + 10  # Small 10 value buffer
 
-    inactive_lower = np.array([88, 148, 159]) - 27  # X value buffer
-    inactive_upper = np.array([160, 220, 189]) + 25
+    inactive_lower = np.array([88, 148, 135]) - 25  # X value buffer
+    inactive_upper = np.array([160, 220, 189]) + 40
 
     active_lower = active_target - tolerance // 2
     active_upper = active_target + tolerance // 2
@@ -132,11 +136,10 @@ def fishing_image_test():
     cv2.waitKey(0)
 
 def findProgressByColor():
-    test_image = cv2.imread("resources/fishing_still_test3.jpg")
+    test_image = cv2.imread("resources/fishing_still_test_faint_bar.jpg")
     cv2.imshow("Original Image", test_image)
 
     ff = FishingFrame.FishingFrame.create_from_image(test_image)
-    ff.find_fish()
     ff.find_progress()
     exit()
     pb = ff.progress_bar
@@ -157,8 +160,110 @@ def findProgressByColor():
 
     cv2.waitKey(0)
 
+def liveTracking():
+    ff = _waitForFF()
+
+    print("Found Frame!")
+    while True:
+        ff.find()
+        ff.find_all()
+        print(ff)
+        print()
+        cv2.imshow("Game", ff.get_image())
+        if cv2.waitKey(100) == ord('q'):
+            break
+
+def anchorTest():
+    test_image = cv2.imread("resources/fishing_still_test1.jpg")
+    #test_image = cv2.imread("resources/incorrect_still.jpg")
+
+    anchor = cv2.imread("resources/fishing_anchor.jpg")
+
+    cv2.imshow("Original Image", test_image)
+
+    ff = FishingFrame.FishingFrame.create_from_image(test_image)
+    frame_image = ff.get_image()
+
+    res = cv2.matchTemplate(ff.image, anchor, cv2.TM_CCOEFF_NORMED)
+    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+    print(frame_image.shape, anchor.shape)
+    print(np.array(max_loc) + anchor.shape[1::-1])
+    frame_image = cv2.rectangle(frame_image, max_loc, np.array(max_loc) + anchor.shape[1::-1], 255 ,2)
+
+    cv2.imshow("Frame", frame_image)
+
+    cv2.waitKey(0)
+
+
+def _waitForFF():
+    sct = mss.mss()
+    mon = {'left': 0, 'top': 0, 'width': 1920, 'height': 1080}
+    ff = None
+    # Wait for the frame to be found
+    while not ff:
+
+        ss = sct.grab(mon)
+
+        image = np.asarray(Image.frombytes(
+            'RGB',
+            (ss.width, ss.height),
+            ss.rgb,
+        ))
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        ff = FishingFrame.FishingFrame.create_from_image(image)
+
+        cv2.imshow("Screen", image)
+        cv2.waitKey(100)
+
+    return ff
+
+mouse_is_pressed = False
+ff = None
+
+def _mouseCallBack(x, y, button, pressed):
+    global mouse_is_pressed
+    mouse_is_pressed = pressed
+    _writeDataPoint(ff.get_params(), mouse_is_pressed)
+    # print(args)
+
+def _writeDataPoint(X, y):
+    print(X, y)
+
+
+def createTrainData():
+    """
+    Creates training data
+    First col is if click is made
+
+
+    :return:
+    """
+    global ff
+    ff = _waitForFF()
+    pynput.mouse.Listener(on_click=_mouseCallBack).start()
+
+    frame_rate = 100
+
+    while True:
+        ret = ff.find()
+
+        if ret is False:
+            break
+
+        ff.find_all()
+
+        params = ff.get_params()
+        #_writeDataPoint(params, mouse_is_pressed)
+        if cv2.waitKey(frame_rate) == ord('q'):
+            break
+
+
 if __name__ == "__main__":
     # similarColorTest()
     # findFishingBarColor()
-    fishing_image_test()
+    # fishing_image_test()
     # findProgressByColor()
+    # liveTracking()
+    # anchorTest()
+    createTrainData()
