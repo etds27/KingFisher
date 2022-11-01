@@ -1,5 +1,7 @@
 import pprint
+import datetime
 import time
+
 
 import cv2
 import numpy as np
@@ -10,8 +12,12 @@ import os
 import scipy.signal
 from scipy import ndimage
 
+import Angler
+import TackleBox
+
 from pynput.mouse import Listener
 
+import DataGatherer
 import FishingFrame
 
 
@@ -161,7 +167,8 @@ def findProgressByColor():
     cv2.waitKey(0)
 
 def liveTracking():
-    ff = _waitForFF()
+
+    ff = TackleBox.waitForFF()
 
     print("Found Frame!")
     while True:
@@ -194,69 +201,61 @@ def anchorTest():
 
     cv2.waitKey(0)
 
+def inventoryVisibileTest():
+    test_image_true = cv2.imread("test_resources/exclaimation_faded.jpg")
+    test_image_false = cv2.imread("test_resources/inventory_false_test.jpg")
 
-def _waitForFF():
-    sct = mss.mss()
-    mon = {'left': 0, 'top': 0, 'width': 1920, 'height': 1080}
-    ff = None
-    # Wait for the frame to be found
-    while not ff:
+    inventory_anchor = cv2.imread("resources/inventory_anchor.jpg")
 
-        ss = sct.grab(mon)
+    res = cv2.matchTemplate(test_image_true, inventory_anchor, cv2.TM_CCOEFF_NORMED)
+    min_pct, max_pct, min_loc, max_loc = cv2.minMaxLoc(res)
 
-        image = np.asarray(Image.frombytes(
-            'RGB',
-            (ss.width, ss.height),
-            ss.rgb,
-        ))
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    res = cv2.matchTemplate(test_image_false, inventory_anchor, cv2.TM_CCOEFF_NORMED)
+    min_pct, max_pct, min_loc, max_loc = cv2.minMaxLoc(res)
 
-        ff = FishingFrame.FishingFrame.create_from_image(image)
+    return max_pct > 0.95
 
-        cv2.imshow("Screen", image)
-        cv2.waitKey(100)
-
-    return ff
-
-mouse_is_pressed = False
-ff = None
-
-def _mouseCallBack(x, y, button, pressed):
-    global mouse_is_pressed
-    mouse_is_pressed = pressed
-    _writeDataPoint(ff.get_params(), mouse_is_pressed)
-    # print(args)
-
-def _writeDataPoint(X, y):
-    print(X, y)
+def findExclaim():
 
 
-def createTrainData():
-    """
-    Creates training data
-    First col is if click is made
-
-
-    :return:
-    """
-    global ff
-    ff = _waitForFF()
-    pynput.mouse.Listener(on_click=_mouseCallBack).start()
-
-    frame_rate = 100
+    # print(exclaimation.shape)
 
     while True:
-        ret = ff.find()
+        image = TackleBox.getScreenshot(gray=True)
+        # print(image.shape)
+        res = cv2.matchTemplate(image, exclaimation, cv2.TM_CCOEFF_NORMED)
+        min_pct, max_pct, min_loc, max_loc = cv2.minMaxLoc(res)
+        print(max_pct, max_loc)
 
-        if ret is False:
+        if cv2.waitKey(5) == ord('q'):
             break
 
-        ff.find_all()
+def findHit():
 
-        params = ff.get_params()
-        #_writeDataPoint(params, mouse_is_pressed)
+    if TackleBox.waitForFF(timeout=3):
+        return True
+
+    return False
+
+
+
+
+def recordScreenshots(path="screen_record", frame_rate=5):
+    i = 0
+
+    while True:
+        image = TackleBox.getScreenshot()
+        image = Image.fromarray(image)
+        image.save(os.path.join(path, "ss_%s.jpg" % datetime.datetime.now().strftime("%S_%f")))
+
         if cv2.waitKey(frame_rate) == ord('q'):
             break
+
+def covertImage(path):
+    image = cv2.imread(path)
+    #image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image = Image.fromarray(image, "RGB")
+    image.save("resources/HIT_solid.jpg")
 
 
 if __name__ == "__main__":
@@ -266,4 +265,36 @@ if __name__ == "__main__":
     # findProgressByColor()
     # liveTracking()
     # anchorTest()
-    createTrainData()
+    # createTrainData()
+
+    # inventoryVisibileTest()
+
+    a = Angler.Angler()
+    loc = (0, 0)
+
+    # time.sleep(1)
+
+    while True:
+        a.checkForExhaustion()
+
+        image = TackleBox.getScreenshot({'left': 15, 'top': 850, 'width': 400, 'height': 150})
+        cv2.imshow("Exhaustion", image)
+
+        if cv2.waitKey(10) == ord('q'):
+            break
+
+        if a.game_state == Angler.GameState.EXHAUSTED:
+            break
+
+    #a.run()
+
+    #dg = DataGatherer.DataGatherer()
+    #dg.gatherTrainingData()
+    # dg.concatRawDataFile("training_data_20221014_154943_25_1_1.csv")
+    # dg.prepareAllRawData()
+
+    #recordScreenshots()
+    #covertImage("resources/HIT_bgr.jpg")
+    # findHit()
+
+

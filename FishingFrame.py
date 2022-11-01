@@ -177,8 +177,14 @@ class FishingFrame:
             np.all(np.logical_and(self.progress_bar > target - tolerance, self.progress_bar < target + tolerance),
                    axis=-1))] = [255, 255, 255]
 
-        self.progress_px = w[0][-1]
-        self.progress = 1 - (self.progress_px / self.pb_h)
+
+        print(w[0])
+        if len(w[0]):
+            self.progress_px = w[0][-1]
+            self.progress = 1 - (self.progress_px / self.pb_h)
+        else:
+            self.progress_px = 0
+            self.progress = 1
 
     def find_chest(self):
         pass
@@ -198,6 +204,7 @@ class FishingFrame:
         :return:
         """
 
+        print(self.image.shape, FishingFrame.anchor.shape)
         res = cv2.matchTemplate(self.image, FishingFrame.anchor, cv2.TM_CCOEFF_NORMED)
         _, max_val, _, _ = cv2.minMaxLoc(res)
 
@@ -214,6 +221,10 @@ class FishingFrame:
             "bar_lower_pct": self.fb_lower_pct,
             "progress": self.progress
         }
+
+    @staticmethod
+    def get_dict_keys():
+        return ["bar_upper_pct", "bar_lower_pct", "fish_location", "progress"]
 
     def get_image(self):
         image = self.image.copy()
@@ -244,7 +255,7 @@ class FishingFrame:
         s += "%-20s: %f\n" % ("Bar Upper", self.fb_upper)
         s += "%-20s: %f\n" % ("Bar Upper", self.fb_lower)
         s += "%-20s: %f\n" % ("Percent", self.progress)
-        s += "%-20s: %f\n" % ("Chest", self.chest_pct if self.chest_visible else "None")
+        #s += "%-20s: %f\n" % ("Chest", self.chest_pct if self.chest_visible else "None")
         return s
 
     @staticmethod
@@ -253,7 +264,7 @@ class FishingFrame:
         res = cv2.matchTemplate(image, FishingFrame.fishing_frame, cv2.TM_CCOEFF_NORMED)
         min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
         # cv2.imshow("TEST", image)
-        print(max_val)
+        # print(max_val)
         if max_val < threshold:
             return None
 
