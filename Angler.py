@@ -12,6 +12,7 @@ from enum import Enum
 import AnglerAI
 import pyautogui
 
+import Inventory
 import TackleBox
 
 
@@ -31,7 +32,6 @@ class Angler:
     def __init__(self):
         self.game_state = GameState.IDLE
         self.angler_ai = AnglerAI.AnglerAI()
-        self.inventory_anchor = cv2.imread("resources/inventory_anchor.jpg")
 
         self.exclamation_anchor = cv2.imread("resources/exclamation_solid.jpg")
         self.exclamation_anchor = cv2.cvtColor(self.exclamation_anchor, cv2.COLOR_RGB2GRAY)
@@ -42,6 +42,7 @@ class Angler:
         self.exhausted = False
 
         self.ff = None
+        self.inventory = Inventory.Inventory()
 
     def run(self):
         while True:
@@ -68,7 +69,7 @@ class Angler:
                 time.sleep(15)
                 pyautogui.mouseDown()
                 pyautogui.mouseUp()
-                time.sleep(0.5)
+                time.sleep(3)
 
                 logging.info("Angler.run: game_state = %s | Fishing over. Checking inventory" % "FISHING")
                 self.determineInventory()
@@ -161,14 +162,8 @@ class Angler:
         Checks to see if the inventory page is displayed
         :return:
         """
-        inventory_anchor = cv2.imread("resources/inventory_anchor.jpg")
-        image = TackleBox.getScreenshot()
-
-        res = cv2.matchTemplate(image, inventory_anchor, cv2.TM_CCOEFF_NORMED)
-        _, max_pct, _, max_loc = cv2.minMaxLoc(res)
-
-        logging.debug("Angler.determinInventory: max_pct = %f%% | max_loc = %s" % (max_pct, max_loc))
-        self.game_state = GameState.INVENTORY if max_pct > 0.95 else GameState.IDLE
+        self.game_state = GameState.INVENTORY if self.inventory.isInventoryDisplayed() > 0.95 else GameState.IDLE
+        logging.info("Angler.determineHit: game_state = %s | Updated game_state" % self.game_state)
 
     def manageInventory(self):
         """
@@ -179,17 +174,8 @@ class Angler:
         Maybe allow for actual inventory management
         :return:
         """
-        image = TackleBox.getScreenshot()
+        logging.info("Angler.manageInventory: game_state = %s | replacing garbage is applicable" % self.game_state)
 
-        res = cv2.matchTemplate(image, self.inventory_anchor, cv2.TM_CCOEFF_NORMED)
-        _, max_pct, _, max_loc = cv2.minMaxLoc(res)
-
-        # Update the location to be in the middle of the button
-        max_loc += np.array(self.inventory_anchor.shape[:1]) / 2
-
-        logging.debug("Angler.manageInventory: game_state = %s | max_pct = %f | max_loc = %s" % (self.game_state,
-                                                                                                 max_pct, max_loc))
-        pyautogui.moveTo(*max_loc)
-        pyautogui.mouseDown()
-        pyautogui.mouseUp()
+        self.inventory.swapItemsWithGarbage()
+        self.inventory.close()
         self.game_state = GameState.IDLE

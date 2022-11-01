@@ -6,6 +6,7 @@ import time
 import cv2
 import numpy as np
 import mss
+import pyautogui
 import pynput.mouse
 from PIL import Image
 import os
@@ -13,6 +14,7 @@ import scipy.signal
 from scipy import ndimage
 
 import Angler
+import Inventory
 import TackleBox
 
 from pynput.mouse import Listener
@@ -270,23 +272,10 @@ if __name__ == "__main__":
     # inventoryVisibileTest()
 
     a = Angler.Angler()
-    loc = (0, 0)
+    #loc = (0, 0)
 
-    # time.sleep(1)
-
-    while True:
-        a.checkForExhaustion()
-
-        image = TackleBox.getScreenshot({'left': 15, 'top': 850, 'width': 400, 'height': 150})
-        cv2.imshow("Exhaustion", image)
-
-        if cv2.waitKey(10) == ord('q'):
-            break
-
-        if a.game_state == Angler.GameState.EXHAUSTED:
-            break
-
-    #a.run()
+    time.sleep(1)
+    a.run()
 
     #dg = DataGatherer.DataGatherer()
     #dg.gatherTrainingData()
@@ -296,5 +285,17 @@ if __name__ == "__main__":
     #recordScreenshots()
     #covertImage("resources/HIT_bgr.jpg")
     # findHit()
+
+    #inventory = Inventory.Inventory()
+    # inventory.displayInventories()
+    #inventory.swapItemsWithGarbage()
+    #inventory.close()
+    #time.sleep(1)
+    #trash_can = cv2.imread("resources/trash_can.jpg")
+
+    #TackleBox.findAndClickImage(trash_can)
+    #time.sleep(1)
+    #pyautogui.keyDown("ESC")
+    #pyautogui.keyUp("ESC")
 
 
